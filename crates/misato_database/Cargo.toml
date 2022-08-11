@@ -1,12 +1,12 @@
 [package]
-name = "yui_database"
+name = "misato_database"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-yui_utils = { path = "../yui_utils"}
+misato_utils = { path = "../misato_utils"}
 
 [dependencies.mongodb]
 version = "2.2.0"

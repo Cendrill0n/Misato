@@ -1,5 +1,5 @@
-extern crate yui_utils;
-use yui_utils::settings::Settings;
+extern crate misato_utils;
+use misato_utils::settings::Settings;
 
 use crate::models::data_model::Data;
 

@@ -1,10 +1,10 @@
-# | **📖 Yui**
+# | **📖 Misato**
 
 ### Looking to create your own collaborative wiki ? Then you should try this.
 
 <br>
 
-# **Yui the modern collaborative Wiki**
+# **Misato the modern collaborative Wiki**
 
 <br>
 

@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use rocket::{fs::FileServer, *};
 use rocket_dyn_templates::Template;
 
-use yui_database::database::Database;
-use yui_utils::settings::Settings;
+use misato_database::database::Database;
+use misato_utils::settings::Settings;
 
 #[get("/")]
 fn index() -> Template {
