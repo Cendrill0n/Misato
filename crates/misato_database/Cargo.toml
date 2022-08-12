@@ -6,9 +6,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-misato_utils = { path = "../misato_utils"}
+serde = "1.0.143"
+
+misato_utils = { path = "../misato_utils" }
+misato_security = { path = "../misato_security" }
 
 [dependencies.mongodb]
 version = "2.2.0"
 default-features = false
 features = ["sync"]
+
+[dependencies.uuid]
+version = "1.1.2"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+]

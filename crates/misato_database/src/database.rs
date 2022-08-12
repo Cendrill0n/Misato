@@ -1,20 +1,12 @@
-extern crate misato_utils;
-use misato_utils::settings::Settings;
+use mongodb::sync::{Client, Collection};
 
 use crate::models::data_model::Data;
-
-use mongodb::sync::{Client, Collection};
+use crate::user_manager::*;
+use misato_utils::settings::Settings;
 
 pub struct Database {
     pub data: Collection<Data>,
-}
-
-impl Clone for Database {
-    fn clone(&self) -> Self {
-        Database {
-            data: self.data.clone_with_type(),
-        }
-    }
+    pub usermanager: UserManager,
 }
 
 impl Database {
@@ -24,6 +16,7 @@ impl Database {
         let db = client.database(&settings.mongodb_name);
         Database {
             data: db.collection("data"),
+            usermanager: UserManager::init(db.collection("users")),
         }
     }
 }
