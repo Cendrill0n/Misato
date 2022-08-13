@@ -7,13 +7,13 @@ use misato_database::database::Database;
 use misato_utils::settings::Settings;
 
 #[get("/")]
-fn index() -> Template {
+async fn index() -> Template {
     let context: HashMap<String, String> = HashMap::new();
     Template::render("default", &context)
 }
 
 #[launch]
-fn rocket() -> _ {
+async fn rocket() -> _ {
     let settings = Settings::init();
     let database = Database::init(&settings);
     rocket::build()
