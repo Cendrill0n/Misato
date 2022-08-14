@@ -1,5 +1,5 @@
 [package]
-name = "misato"
+name = "misato-api"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,7 +11,11 @@ members = [
 ]
 
 [dependencies]
-rocket = "0.5.0-rc.2"
+serde = "1.0.143"
+serde_json = "1.0.83"
+
+# misato = "0.1.0"
+misato = { path = "../Rust-API/" }
 
 misato_database = { path = "crates/misato_database"}
 misato_utils = { path = "crates/misato_utils"}
@@ -20,3 +24,7 @@ misato_security = { path = "crates/misato_security"}
 [dependencies.rocket_dyn_templates]
 version = "0.1.0-rc.2"
 features = ["tera"]
+
+[dependencies.rocket]
+version = "0.5.0-rc.2"
+features = ["json"]

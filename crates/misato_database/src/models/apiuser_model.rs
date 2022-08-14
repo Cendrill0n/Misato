@@ -5,32 +5,24 @@ use misato_security::{generate_token, password::*};
 use misato_utils::get_current_timestamp;
 
 #[derive(Eq, Hash, PartialEq, Debug, Serialize, Deserialize, Default, Clone)]
-pub struct UserLog {
-    pub ip: String,
-    pub timestamp: u64,
-}
-
-#[derive(Eq, Hash, PartialEq, Debug, Serialize, Deserialize, Default, Clone)]
-pub struct UserToken {
+pub struct ApiUserToken {
     pub token: String,
     pub timestamp: u64,
     pub expiration_timestamp: u64,
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Serialize, Deserialize, Default, Clone)]
-pub struct User {
+pub struct ApiUser {
     pub timestamp: u64,
     pub uuid: String,
     pub username: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub logs: Option<Vec<UserLog>>,
     pub password: Password,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tokens: Option<Vec<UserToken>>,
-    pub access: UserAccess,
+    pub token: Option<ApiUserToken>,
+    pub access: ApiUserAccess,
 }
 
-impl User {
+impl ApiUser {
     pub fn create(username: String, password: Password, uuid: Option<Uuid>) -> Self {
         Self {
             timestamp: get_current_timestamp(),
@@ -46,50 +38,45 @@ impl User {
         }
     }
 
-    pub fn new_token(&mut self, seconds: u64) -> UserToken {
-        let token = UserToken {
+    pub fn new_token(&mut self, seconds: u64) -> ApiUserToken {
+        let token = ApiUserToken {
             token: generate_token(128),
             timestamp: get_current_timestamp(),
             expiration_timestamp: get_current_timestamp() + (seconds * 1000),
         };
-        let mut tokens: Vec<UserToken> = if self.tokens.is_some() {
-            self.tokens.as_ref().unwrap().to_vec()
-        } else {
-            Vec::<UserToken>::new()
-        };
-        tokens.push(token.clone());
-        self.tokens = Some(tokens);
+        self.token = Some(token.clone());
         token
     }
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Serialize, Deserialize, Default, Clone)]
-pub struct UserAccess {
-    pub role: UserRoleType,
+pub struct ApiUserAccess {
+    pub role: ApiUserRoleType,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub permissions: Option<Vec<UserPermissionType>>,
+    pub permissions: Option<Vec<ApiUserPermissionType>>,
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Serialize, Deserialize, Clone)]
-pub enum UserRoleType {
+pub enum ApiUserRoleType {
     Admin, // Only the main website has access
+    Dev,   // Verified USER
     User,  // New account
 }
 
-impl Default for UserRoleType {
+impl Default for ApiUserRoleType {
     fn default() -> Self {
-        UserRoleType::User
+        ApiUserRoleType::User
     }
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Serialize, Deserialize, Clone)]
-pub enum UserPermissionType {
+pub enum ApiUserPermissionType {
     UserManager, // Create, Delete, Edit user informations
     None,        // Default, no more access
 }
 
-impl Default for UserPermissionType {
+impl Default for ApiUserPermissionType {
     fn default() -> Self {
-        UserPermissionType::None
+        ApiUserPermissionType::None
     }
 }

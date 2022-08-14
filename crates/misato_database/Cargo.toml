@@ -7,14 +7,10 @@ edition = "2021"
 
 [dependencies]
 serde = "1.0.143"
+mongodb = "2.3.0"
 
 misato_utils = { path = "../misato_utils" }
 misato_security = { path = "../misato_security" }
-
-[dependencies.mongodb]
-version = "2.2.0"
-default-features = false
-features = ["sync"]
 
 [dependencies.uuid]
 version = "1.1.2"

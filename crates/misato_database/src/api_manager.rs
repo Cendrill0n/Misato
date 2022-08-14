@@ -7,35 +7,35 @@ use mongodb::{
 
 use misato_utils::get_current_timestamp;
 
-use crate::models::user_model::*;
+use crate::models::apiuser_model::*;
 
-pub struct UserManager {
-    pub users: Collection<User>,
+pub struct ApiUserManager {
+    pub apiusers: Collection<ApiUser>,
 }
 
-impl UserManager {
-    pub fn init(users: Collection<User>) -> Self {
-        Self { users }
+impl ApiUserManager {
+    pub fn init(apiusers: Collection<ApiUser>) -> Self {
+        Self { apiusers }
     }
 
     pub async fn username_exists(&self, username: &str) -> Result<bool, Error> {
         Ok(self
-            .users
+            .apiusers
             .count_documents(doc! { "username": username }, None)
             .await?
             != 0)
     }
 
-    pub async fn create_user(&self, user: &User) -> Result<InsertOneResult, Error> {
-        let target = self.users.insert_one(user, None).await?;
+    pub async fn create_apiuser(&self, apiuser: &ApiUser) -> Result<InsertOneResult, Error> {
+        let target = self.apiusers.insert_one(apiuser, None).await?;
         Ok(target)
     }
 
-    pub async fn get_user(
+    pub async fn get_apiuser(
         &self,
         username: Option<&str>,
         uuid: Option<&str>,
-    ) -> Result<Option<User>, Error> {
+    ) -> Result<Option<ApiUser>, Error> {
         let mut doc: Document = Document::new();
         if uuid.is_some() {
             doc = doc! {"uuid": uuid.unwrap()};
@@ -46,16 +46,16 @@ impl UserManager {
         if doc.is_empty() {
             return Ok(None);
         }
-        match self.users.find_one(doc, None).await? {
-            Some(user) => Ok(Some(user)),
+        match self.apiusers.find_one(doc, None).await? {
+            Some(apiuser) => Ok(Some(apiuser)),
             None => Ok(None),
         }
     }
 
-    pub async fn delete_user(
+    pub async fn delete_apiuser(
         &self,
-        username: Option<String>,
-        uuid: Option<String>,
+        username: Option<&str>,
+        uuid: Option<&str>,
     ) -> Result<Option<DeleteResult>, Error> {
         let mut doc: Document = Document::new();
         if uuid.is_some() {
@@ -67,52 +67,55 @@ impl UserManager {
         if doc.is_empty() {
             return Ok(None);
         }
-        Ok(Some(self.users.delete_one(doc, None).await?))
+        Ok(Some(self.apiusers.delete_one(doc, None).await?))
     }
 
-    pub async fn delete_user_from_token(&self, token: &str) -> Result<Option<DeleteResult>, Error> {
+    pub async fn delete_apiuser_from_token(
+        &self,
+        token: &str,
+    ) -> Result<Option<DeleteResult>, Error> {
         Ok(Some(
-            self.users
-                .delete_one(doc! {"tokens.token": token, "tokens.expiration_timestamp": { "$gte": get_current_timestamp() as i64 } }, None)
+            self.apiusers
+                .delete_one(doc! {"token.token": token, "token.expiration_timestamp": { "$gte": get_current_timestamp() as i64 } }, None)
                 .await?,
         ))
     }
 
-    pub async fn save_token(&self, uuid: &str, token: &UserToken) -> Result<UpdateResult, Error> {
+    pub async fn set_token(&self, uuid: &str, token: &ApiUserToken) -> Result<UpdateResult, Error> {
         let doc = mongodb::bson::to_document(token).unwrap();
-        let update = doc! {"$push": {"tokens": doc} };
+        let update = doc! {"$set": {"token": doc} };
         Ok(self
-            .users
+            .apiusers
             .update_one(doc! {"uuid": uuid}, update, None)
             .await?)
     }
 
     pub async fn clear_tokens(&self, uuid: &str) -> Result<UpdateResult, Error> {
-        let update = doc! {"$unset": {"tokens": ""} };
+        let update = doc! {"$unset": {"token": ""} };
         Ok(self
-            .users
+            .apiusers
             .update_one(doc! {"uuid": uuid}, update, None)
             .await?)
     }
 
     pub async fn clear_tokens_from_token(&self, token: &str) -> Result<UpdateResult, Error> {
-        let update = doc! {"$unset": {"tokens": ""} };
+        let update = doc! {"$unset": {"token": ""} };
         Ok(self
-            .users
-            .update_one(doc! {"tokens.token": token, "tokens.expiration_timestamp": { "$gte": get_current_timestamp() as i64 } }, update, None)
+            .apiusers
+            .update_one(doc! {"token.token": token, "token.expiration_timestamp": { "$gte": get_current_timestamp() as i64 } }, update, None)
             .await?)
     }
 
-    pub async fn get_user_from_token(&self, token: &str) -> Result<Option<User>, Error> {
+    pub async fn get_apiuser_from_token(&self, token: &str) -> Result<Option<ApiUser>, Error> {
         match self
-            .users
+            .apiusers
             .find_one(
-                doc! {"tokens.token": token, "tokens.expiration_timestamp": { "$gte": get_current_timestamp() as i64 } },
+                doc! {"token.token": token, "token.expiration_timestamp": { "$gte": get_current_timestamp() as i64 } },
                 None,
             )
             .await?
         {
-            Some(user) => Ok(Some(user)),
+            Some(apiuser) => Ok(Some(apiuser)),
             None => Ok(None),
         }
     }

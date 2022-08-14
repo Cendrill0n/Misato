@@ -6,7 +6,7 @@ pub struct Password {
     pub hash: Vec<u8>,
 }
 
-pub fn generate_salt(size: i32) -> Vec<u8> {
+pub fn generate_salt(size: usize) -> Vec<u8> {
     let random_bytes: Vec<u8> = (0..size).map(|_| rand::random::<u8>()).collect();
     random_bytes
 }
@@ -24,11 +24,11 @@ impl Password {
     /// assert_eq!(same_password.salt != encrypted_password.salt, true);
     /// assert_eq!(same_password.hash != encrypted_password.hash, true);
     /// ```
-    pub fn hash_password(password: &[u8]) -> Password {
+    pub fn hash_password(password: &[u8]) -> Self {
         let salt = generate_salt(256);
         let hash = argon2::hash_raw(password, &salt, &argon2::Config::default()).unwrap();
 
-        Password { salt, hash }
+        Self { salt, hash }
     }
 
     /// You have to provide the salt.
@@ -51,8 +51,6 @@ impl Password {
     /// ```
     pub fn hash_password_salt(salt: &[u8], password: &[u8]) -> Password {
         let hash = argon2::hash_raw(password, &salt, &argon2::Config::default()).unwrap();
-
-        println!("function salt = {:?}", salt);
 
         Password {
             salt: salt.iter().cloned().collect(),
