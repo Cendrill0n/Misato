@@ -1,4 +1,4 @@
-use mongodb::{bson::doc, error::Error, sync::Collection};
+use mongodb::{bson::doc, error::Error, results::InsertOneResult, sync::Collection};
 use uuid::Uuid;
 
 use crate::models::user_model::*;
@@ -12,7 +12,14 @@ impl UserManager {
         UserManager { users }
     }
 
-    pub fn create_user(&self, _user: &User) {}
+    pub fn create_user(&self, user: &User) -> Result<InsertOneResult, Error> {
+        let target = self
+            .users
+            .insert_one(user, None)
+            .ok()
+            .expect("Error whilst creating user.");
+        Ok(target)
+    }
 
     pub fn get_user(
         &self,
