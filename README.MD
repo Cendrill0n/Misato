@@ -1,6 +1,6 @@
-# | **📖 Misato**
+# | **🛠️ Misato Website-API**
 
-### Looking to create your own collaborative wiki ? Then you should try this.
+### REST API of the Misato Wiki.
 
 <br>
 
