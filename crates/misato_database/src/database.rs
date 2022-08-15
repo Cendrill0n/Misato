@@ -16,6 +16,16 @@ impl Database {
         let uri = &settings.mongodb_uri;
         let client = Client::with_uri_str(uri).await?;
         let db = client.database(&settings.mongodb_name);
+        let names = db.list_collection_names(None).await?;
+        if !names.contains(&"data".to_string()) {
+            db.create_collection("data", None).await?;
+        }
+        if !names.contains(&"apiusers".to_string()) {
+            db.create_collection("apiusers", None).await?;
+        }
+        if !names.contains(&"users".to_string()) {
+            db.create_collection("users", None).await?;
+        }
         Ok(Database {
             data: db.collection("data"),
             usermanager: UserManager::init(db.collection("users")),

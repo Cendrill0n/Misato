@@ -16,7 +16,7 @@ pub struct ApiUser {
     pub timestamp: u64,
     pub uuid: String,
     pub username: String,
-    pub password: Password,
+    pub password: Option<Password>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<ApiUserToken>,
     pub access: ApiUserAccess,
@@ -26,12 +26,9 @@ impl ApiUser {
     pub fn create_default(token: String) -> Self {
         Self {
             timestamp: 0,
-            uuid: String::new(),
-            username: String::new(),
-            password: Password {
-                salt: Vec::new(),
-                hash: Vec::new(),
-            },
+            uuid: "admin".to_string(),
+            username: "admin".to_string(),
+            password: None,
             token: Some(ApiUserToken {
                 token,
                 timestamp: get_current_timestamp(),
@@ -53,7 +50,7 @@ impl ApiUser {
                 }
             },
             username,
-            password,
+            password: Some(password),
             ..Default::default()
         }
     }

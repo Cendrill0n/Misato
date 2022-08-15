@@ -1,7 +1,8 @@
 use mongodb::{
     bson::{doc, Document},
     error::Error,
-    results::{DeleteResult, InsertOneResult, UpdateResult},
+    options::ReplaceOptions,
+    results::{DeleteResult, UpdateResult},
     Collection,
 };
 
@@ -26,8 +27,15 @@ impl ApiUserManager {
             != 0)
     }
 
-    pub async fn create_apiuser(&self, apiuser: &ApiUser) -> Result<InsertOneResult, Error> {
-        let target = self.apiusers.insert_one(apiuser, None).await?;
+    pub async fn create_apiuser(&self, apiuser: &ApiUser) -> Result<UpdateResult, Error> {
+        let target = self
+            .apiusers
+            .replace_one(
+                doc! { "username": apiuser.username.clone() },
+                apiuser,
+                ReplaceOptions::builder().upsert(true).build(),
+            )
+            .await?;
         Ok(target)
     }
 

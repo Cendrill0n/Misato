@@ -59,7 +59,7 @@ pub async fn check_token(
 
 #[post("/user/delete", data = "<input>")]
 pub async fn delete(
-    api: ApiToken,
+    _api: ApiToken,
     db: &State<Database>,
     input: Json<account_model::AccountFilter>,
 ) -> Result<Json<String>, account_errors::Error> {
@@ -102,7 +102,7 @@ pub async fn delete(
 
 #[post("/user/clear-tokens", data = "<input>")]
 pub async fn clear_tokens(
-    api: ApiToken,
+    _api: ApiToken,
     db: &State<Database>,
     input: Json<account_model::AccountToken>,
 ) -> Result<Json<String>, account_errors::Error> {

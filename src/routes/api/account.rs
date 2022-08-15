@@ -17,9 +17,7 @@ pub async fn signup(
     db: &State<Database>,
     input: Json<account_model::AccountCredentials>,
 ) -> Result<Json<account_model::Account>, account_errors::Error> {
-    if api.apiuser.access.role != apiuser_model::ApiUserRoleType::Admin
-        || api.apiuser.token.is_none()
-    {
+    if api.apiuser.access.role != apiuser_model::ApiUserRoleType::Admin {
         return Err(account_errors::Error {
             content: account_model::AccountError::build(400, Some("No permission".to_string())),
         });
@@ -88,7 +86,15 @@ pub async fn login(
         .await
     {
         Ok(mut user) => match &mut user {
-            Some(user) if user.password.is_correct_password(input.password.as_bytes()) => {
+            Some(user)
+                if {
+                    let password = user.password.as_ref();
+                    password.is_some()
+                        && password
+                            .unwrap()
+                            .is_correct_password(input.password.as_bytes())
+                } =>
+            {
                 let token = user.new_token(TOKEN_DURATION);
                 let _ = db.apiusermanager.set_token(&user.uuid, &token).await;
                 return Ok(Json(account_model::Account {

@@ -17,8 +17,12 @@ fn init() -> AdHoc {
                 // Create admin user
                 let user = ApiUser::create_default(settings.admin_token.clone());
                 match database.apiusermanager.create_apiuser(&user).await {
-                    Ok(_) => println!("Successfully created default user."),
-                    Err(err) => println!("Error whilst creating default user {:?}", err),
+                    Ok(_) => {
+                        println!("Successfully created default user.")
+                    }
+                    Err(err) => {
+                        println!("Error whilst creating default user [{:?}]", err);
+                    }
                 }
                 rocket.manage(database).manage(settings)
             }
