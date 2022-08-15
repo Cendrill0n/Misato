@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
-use misato_security::{generate_token, password::*};
+use misato_security::generate_token;
 use misato_utils::get_current_timestamp;
 
 #[derive(Eq, Hash, PartialEq, Debug, Serialize, Deserialize, Default, Clone)]
@@ -15,8 +14,6 @@ pub struct ApiUserToken {
 pub struct ApiUser {
     pub timestamp: u64,
     pub uuid: String,
-    pub username: String,
-    pub password: Option<Password>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<ApiUserToken>,
     pub access: ApiUserAccess,
@@ -27,8 +24,6 @@ impl ApiUser {
         Self {
             timestamp: 0,
             uuid: "admin".to_string(),
-            username: "admin".to_string(),
-            password: None,
             token: Some(ApiUserToken {
                 token,
                 timestamp: get_current_timestamp(),
@@ -40,17 +35,10 @@ impl ApiUser {
             },
         }
     }
-    pub fn create(username: String, password: Password, uuid: Option<Uuid>) -> Self {
+    pub fn create(uuid: String) -> Self {
         Self {
             timestamp: get_current_timestamp(),
-            uuid: {
-                match uuid {
-                    None => Uuid::new_v4().to_string(),
-                    Some(uuid) => uuid.to_string(),
-                }
-            },
-            username,
-            password: Some(password),
+            uuid,
             ..Default::default()
         }
     }

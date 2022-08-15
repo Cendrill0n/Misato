@@ -26,6 +26,14 @@ impl UserManager {
             != 0)
     }
 
+    pub async fn uuid_exists(&self, uuid: &str) -> Result<bool, Error> {
+        Ok(self
+            .users
+            .count_documents(doc! { "uuid": uuid }, None)
+            .await?
+            != 0)
+    }
+
     pub async fn create_user(&self, user: &User) -> Result<InsertOneResult, Error> {
         let target = self.users.insert_one(user, None).await?;
         Ok(target)
@@ -54,8 +62,8 @@ impl UserManager {
 
     pub async fn delete_user(
         &self,
-        username: Option<String>,
-        uuid: Option<String>,
+        username: Option<&str>,
+        uuid: Option<&str>,
     ) -> Result<Option<DeleteResult>, Error> {
         let mut doc: Document = Document::new();
         if uuid.is_some() {

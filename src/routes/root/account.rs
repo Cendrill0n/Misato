@@ -16,21 +16,35 @@ pub async fn login(
 ) -> Result<Json<account_model::Account>, account_errors::Error> {
     match db.usermanager.get_user(Some(&input.username), None).await {
         Ok(mut user) => match &mut user {
-            Some(user) if user.password.is_correct_password(input.password.as_bytes()) => {
-                let token = user.new_token(TOKEN_DURATION);
-                let _ = db.usermanager.save_token(&user.uuid, &token).await;
-                return Ok(Json(account_model::Account {
-                    username: user.username.clone(),
-                    uuid: user.uuid.clone(),
-                    token: token.token.to_string(),
-                }));
+            Some(user) => {
+                let password = user.password.as_ref();
+                if password.is_some()
+                    && password
+                        .unwrap()
+                        .is_correct_password(input.password.as_bytes())
+                {
+                    let token = user.new_token(TOKEN_DURATION);
+                    let _ = db.usermanager.save_token(&user.uuid, &token).await;
+                    return Ok(Json(account_model::Account {
+                        username: user.username.clone(),
+                        uuid: user.uuid.clone(),
+                        token: token.token.to_string(),
+                    }));
+                } else {
+                    return Err(account_errors::Error {
+                        content: account_model::AccountError::build(
+                            400,
+                            Some(format!("[{}]: Account has disabled login.", input.username)),
+                        ),
+                    });
+                }
             }
             _ => {
                 return Err(account_errors::Error {
                     content: account_model::AccountError::build(
                         400,
                         Some(format!(
-                            "Account doesn't exist with the username: [{}]",
+                            "[{}]: Username not related to any account.",
                             input.username
                         )),
                     ),

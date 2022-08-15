@@ -5,130 +5,272 @@ use misato::models::account_model;
 
 use misato_database::database::*;
 
-use misato_database::models::apiuser_model;
+use misato_database::models::apiuser_model::ApiUserRoleType;
 
 use crate::errors::account_errors;
 
-use crate::fairings::authentication::ApiToken;
+use crate::fairings::api_authentication::ApiUserToken;
 
 #[post("/user/check-token", data = "<input>")]
 pub async fn check_token(
-    api: ApiToken,
+    api: ApiUserToken,
     db: &State<Database>,
     input: Json<account_model::AccountToken>,
-) -> Result<Json<account_model::Account>, account_errors::Error> {
-    if api.apiuser.access.role != apiuser_model::ApiUserRoleType::Dev
-        && api.apiuser.access.role != apiuser_model::ApiUserRoleType::Admin
-    {
+) -> Result<Json<account_model::AccountTokenInfos>, account_errors::Error> {
+    let api = api.apiuser;
+
+    let result = db.usermanager.get_user(None, Some(&api.uuid)).await;
+    if result.is_ok() && result.as_ref().unwrap().is_none() {
         return Err(account_errors::Error {
-            content: account_model::AccountError::build(400, Some("No permission".to_string())),
+            content: account_model::AccountError::build(
+                400,
+                Some(format!("[{}]: User account doesn't exist.", api.uuid)),
+            ),
         });
     }
-    match db.usermanager.get_user_from_token(&input.token).await {
-        Ok(user) => match user {
-            Some(user) => {
-                return Ok(Json(account_model::Account {
-                    username: user.username,
-                    uuid: user.uuid,
-                    token: input.token.to_string(),
-                }))
-            }
-            _ => {
+    match api.access.role {
+        ApiUserRoleType::Admin => {
+            let result = db.usermanager.get_user_from_token(&input.token).await;
+            if result.is_ok() && result.as_ref().unwrap().is_none() {
                 return Err(account_errors::Error {
                     content: account_model::AccountError::build(
                         400,
                         Some(format!(
-                            "Account doesn't exist with the token: [{}]",
+                            "[{}]: Token not related to any account.",
                             input.token
                         )),
                     ),
-                })
+                });
             }
-        },
-        Err(error) => {
-            println!("{:?}", error);
-            return Err(account_errors::Error {
-                content: account_model::AccountError::build(
-                    500,
-                    Some("Database error.".to_string()),
-                ),
-            });
+            let mut tokens = result.unwrap().unwrap().clone().tokens.unwrap();
+            tokens.retain(|filter| filter.token == input.token);
+            let token = tokens.get(0).unwrap();
+            return Ok(Json(account_model::AccountTokenInfos {
+                token: token.token.clone(),
+                timestamp: token.timestamp,
+                expiration_timestamp: token.expiration_timestamp,
+            }));
+        }
+        _ => {
+            let result = result.unwrap().unwrap().tokens;
+            if result.is_none() {
+                return Err(account_errors::Error {
+                    content: account_model::AccountError::build(
+                        400,
+                        Some(format!(
+                            "[{}]: Token not related to any account.",
+                            input.token
+                        )),
+                    ),
+                });
+            }
+            let mut tokens = result.unwrap().clone();
+            tokens.retain(|filter| filter.token == input.token);
+            if tokens.is_empty() {
+                return Err(account_errors::Error {
+                    content: account_model::AccountError::build(
+                        400,
+                        Some(format!(
+                            "[{}]: Token not related to any account.",
+                            input.token
+                        )),
+                    ),
+                });
+            }
+            let token = tokens.get(0).unwrap();
+            return Ok(Json(account_model::AccountTokenInfos {
+                token: token.token.clone(),
+                timestamp: token.timestamp,
+                expiration_timestamp: token.expiration_timestamp,
+            }));
         }
     }
 }
 
 #[post("/user/delete", data = "<input>")]
 pub async fn delete(
-    _api: ApiToken,
+    api: ApiUserToken,
     db: &State<Database>,
-    input: Json<account_model::AccountFilter>,
+    input: Json<account_model::AccountToken>,
 ) -> Result<Json<String>, account_errors::Error> {
-    match db
-        .usermanager
-        .delete_user(input.username.clone(), input.uuid.clone())
-        .await
-    {
-        Ok(user) => match user {
-            Some(count) if count.deleted_count >= 1 => {
-                return Ok(Json("account deleted.".to_string()));
-            }
-            _ => {
+    let api = api.apiuser;
+
+    let result = db.usermanager.get_user(None, Some(&api.uuid)).await;
+    if result.is_ok() && result.as_ref().unwrap().is_none() {
+        return Err(account_errors::Error {
+            content: account_model::AccountError::build(
+                400,
+                Some(format!("[{}]: User account doesn't exist.", api.uuid)),
+            ),
+        });
+    }
+    match api.access.role {
+        ApiUserRoleType::Admin => {
+            let result = db.usermanager.get_user_from_token(&input.token).await;
+            if result.is_ok() && result.as_ref().unwrap().is_none() {
                 return Err(account_errors::Error {
                     content: account_model::AccountError::build(
                         400,
                         Some(format!(
-                            "Account doesn't exist with the uuid: [{}] or the username: [{}]",
-                            input
-                                .username
-                                .as_ref()
-                                .unwrap_or(&"none_provided".to_string()),
-                            input.uuid.as_ref().unwrap_or(&"none_provided".to_string()),
+                            "[{}]: Token not related to any account.",
+                            input.token
                         )),
                     ),
-                })
+                });
             }
-        },
-        Err(error) => {
-            println!("{:?}", error);
-            return Err(account_errors::Error {
-                content: account_model::AccountError::build(
-                    500,
-                    Some("Database error.".to_string()),
-                ),
-            });
+            match db
+                .apiusermanager
+                .delete_apiuser_from_token(&input.token)
+                .await
+            {
+                Ok(_) => {
+                    return Ok(Json("Account deleted.".to_string()));
+                }
+                Err(error) => {
+                    println!("{:?}", error);
+                    return Err(account_errors::Error {
+                        content: account_model::AccountError::build(
+                            500,
+                            Some("Database error.".to_string()),
+                        ),
+                    });
+                }
+            }
+        }
+        _ => {
+            let result = result.unwrap().unwrap().tokens;
+            if result.is_none() {
+                return Err(account_errors::Error {
+                    content: account_model::AccountError::build(
+                        400,
+                        Some(format!(
+                            "[{}]: Token not related to any account.",
+                            input.token
+                        )),
+                    ),
+                });
+            }
+            let mut tokens = result.unwrap().clone();
+            tokens.retain(|filter| filter.token == input.token);
+            if tokens.is_empty() {
+                return Err(account_errors::Error {
+                    content: account_model::AccountError::build(
+                        400,
+                        Some(format!(
+                            "[{}]: Token not related to any account.",
+                            input.token
+                        )),
+                    ),
+                });
+            }
+            match db
+                .apiusermanager
+                .delete_apiuser_from_token(&input.token)
+                .await
+            {
+                Ok(_) => {
+                    return Ok(Json("Account deleted.".to_string()));
+                }
+                Err(error) => {
+                    println!("{:?}", error);
+                    return Err(account_errors::Error {
+                        content: account_model::AccountError::build(
+                            500,
+                            Some("Database error.".to_string()),
+                        ),
+                    });
+                }
+            }
         }
     }
 }
 
 #[post("/user/clear-tokens", data = "<input>")]
 pub async fn clear_tokens(
-    _api: ApiToken,
+    api: ApiUserToken,
     db: &State<Database>,
     input: Json<account_model::AccountToken>,
 ) -> Result<Json<String>, account_errors::Error> {
-    match db.usermanager.clear_tokens_from_token(&input.token).await {
-        Ok(user) => match user.modified_count {
-            1 => return Ok(Json("tokens cleared.".to_string())),
-            _ => {
+    let api = api.apiuser;
+
+    let result = db.usermanager.get_user(None, Some(&api.uuid)).await;
+    if result.is_ok() && result.as_ref().unwrap().is_none() {
+        return Err(account_errors::Error {
+            content: account_model::AccountError::build(
+                400,
+                Some(format!("[{}]: User account doesn't exist.", api.uuid)),
+            ),
+        });
+    }
+    match api.access.role {
+        ApiUserRoleType::Admin => {
+            let result = db.usermanager.get_user_from_token(&input.token).await;
+            if result.is_ok() && result.as_ref().unwrap().is_none() {
                 return Err(account_errors::Error {
                     content: account_model::AccountError::build(
                         400,
                         Some(format!(
-                            "Account doesn't exist with the token: [{}]",
+                            "[{}]: Token not related to any account.",
                             input.token
                         )),
                     ),
-                })
+                });
             }
-        },
-        Err(error) => {
-            println!("{:?}", error);
-            return Err(account_errors::Error {
-                content: account_model::AccountError::build(
-                    500,
-                    Some("Database error.".to_string()),
-                ),
-            });
+            match db.apiusermanager.clear_tokens(&input.token).await {
+                Ok(_) => {
+                    return Ok(Json("Tokens removed.".to_string()));
+                }
+                Err(error) => {
+                    println!("{:?}", error);
+                    return Err(account_errors::Error {
+                        content: account_model::AccountError::build(
+                            500,
+                            Some("Database error.".to_string()),
+                        ),
+                    });
+                }
+            }
+        }
+        _ => {
+            let result = result.unwrap().unwrap().tokens;
+            if result.is_none() {
+                return Err(account_errors::Error {
+                    content: account_model::AccountError::build(
+                        400,
+                        Some(format!(
+                            "[{}]: Token not related to any account.",
+                            input.token
+                        )),
+                    ),
+                });
+            }
+            let mut tokens = result.unwrap().clone();
+            tokens.retain(|filter| filter.token == input.token);
+            if tokens.is_empty() {
+                return Err(account_errors::Error {
+                    content: account_model::AccountError::build(
+                        400,
+                        Some(format!(
+                            "[{}]: Token not related to any account.",
+                            input.token
+                        )),
+                    ),
+                });
+            }
+            match db.apiusermanager.clear_tokens(&input.token).await {
+                Ok(_) => {
+                    return Ok(Json("Tokens removed.".to_string()));
+                }
+                Err(error) => {
+                    println!("{:?}", error);
+                    return Err(account_errors::Error {
+                        content: account_model::AccountError::build(
+                            500,
+                            Some("Database error.".to_string()),
+                        ),
+                    });
+                }
+            }
         }
     }
 }

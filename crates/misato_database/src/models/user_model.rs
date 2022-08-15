@@ -24,7 +24,8 @@ pub struct User {
     pub username: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logs: Option<Vec<UserLog>>,
-    pub password: Password,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub password: Option<Password>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tokens: Option<Vec<UserToken>>,
     pub access: UserAccess,
@@ -41,7 +42,7 @@ impl User {
                 }
             },
             username,
-            password,
+            password: Some(password),
             ..Default::default()
         }
     }

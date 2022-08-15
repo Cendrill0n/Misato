@@ -37,13 +37,22 @@ fn init() -> AdHoc {
 async fn rocket() -> _ {
     let mut routes: Vec<Route> = Vec::new();
 
-    // Api
+    // Api Admin
     routes.append(&mut routes![
-        api::account::signup,
-        api::account::login,
-        api::account::clear_tokens,
-        api::account::delete,
-        api::account::check_token,
+        api::admin::account::signup,
+        api::admin::account::refresh_token,
+        api::admin::account::clear_tokens,
+        api::admin::account::delete,
+        api::admin::account::check_token,
+    ]);
+
+    // Api root
+    routes.append(&mut routes![
+        api::root::account::signup,
+        api::root::account::refresh_token,
+        api::root::account::clear_tokens,
+        api::root::account::delete,
+        api::root::account::check_token,
     ]);
 
     // Everyone
@@ -57,7 +66,13 @@ async fn rocket() -> _ {
     ]);
 
     // Admin
-    routes.append(&mut routes![admin::account::signup]);
+    routes.append(&mut routes![
+        admin::account::signup,
+        admin::account::refresh_token,
+        admin::account::clear_tokens,
+        admin::account::delete,
+        admin::account::check_token,
+    ]);
 
     rocket::build().attach(init()).mount("/", routes)
 }

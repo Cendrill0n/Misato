@@ -19,10 +19,10 @@ impl ApiUserManager {
         Self { apiusers }
     }
 
-    pub async fn username_exists(&self, username: &str) -> Result<bool, Error> {
+    pub async fn uuid_exists(&self, uuid: &str) -> Result<bool, Error> {
         Ok(self
             .apiusers
-            .count_documents(doc! { "username": username }, None)
+            .count_documents(doc! { "uuid": uuid }, None)
             .await?
             != 0)
     }
@@ -31,7 +31,7 @@ impl ApiUserManager {
         let target = self
             .apiusers
             .replace_one(
-                doc! { "username": apiuser.username.clone() },
+                doc! { "uuid": apiuser.uuid.clone() },
                 apiuser,
                 ReplaceOptions::builder().upsert(true).build(),
             )

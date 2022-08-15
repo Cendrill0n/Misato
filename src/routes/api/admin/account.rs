@@ -2,43 +2,53 @@ use rocket::serde::json::Json;
 use rocket::*;
 
 use misato_database::{database::*, models::*};
-use misato_security::password::*;
 
 use misato::models::account_model;
 
 use crate::errors::account_errors;
+use crate::fairings::api_authentication::ApiUserToken;
 
 const TOKEN_DURATION: u64 = 24 * 60 * 60;
 
-use crate::fairings::api_authentication::ApiUserToken;
-
-#[post("/admin/signup", data = "<input>")]
+#[post("/api/admin/signup", data = "<input>")]
 pub async fn signup(
     api: ApiUserToken,
     db: &State<Database>,
-    input: Json<account_model::AccountCredentials>,
-) -> Result<Json<account_model::Account>, account_errors::Error> {
+    input: Json<account_model::AccountUuid>,
+) -> Result<Json<account_model::AccountTokenInfos>, account_errors::Error> {
     if api.apiuser.access.role != apiuser_model::ApiUserRoleType::Admin {
         return Err(account_errors::Error {
             content: account_model::AccountError::build(400, Some("No permission".to_string())),
         });
     }
-    let mut user = user_model::User::create(
-        input.username.to_string(),
-        Password::hash_password(input.password.as_bytes()),
-        None,
-    );
+    let mut user = apiuser_model::ApiUser::create(input.uuid.clone());
 
-    match db.usermanager.username_exists(&user.username).await {
+    let result = db
+        .apiusermanager
+        .get_apiuser(None, Some(&user.uuid.to_string()))
+        .await;
+    if result.is_ok() && result.as_ref().unwrap().is_some() {
+        return Err(account_errors::Error {
+            content: account_model::AccountError::build(
+                400,
+                Some(format!("[{}]: API Account already exists.", input.uuid)),
+            ),
+        });
+    }
+    if result.is_err() {
+        println!("{:?}", result.unwrap_err());
+        return Err(account_errors::Error {
+            content: account_model::AccountError::build(500, Some("Database error.".to_string())),
+        });
+    }
+
+    match db.apiusermanager.uuid_exists(&user.uuid).await {
         Ok(exists) => {
-            if exists {
+            if !exists {
                 return Err(account_errors::Error {
                     content: account_model::AccountError::build(
                         400,
-                        Some(format!(
-                            "[{}]: Username already used by an account.",
-                            input.username
-                        )),
+                        Some(format!("[{}]: Account doesn't exist.", input.uuid)),
                     ),
                 });
             }
@@ -54,15 +64,27 @@ pub async fn signup(
         }
     }
 
-    match db.usermanager.create_user(&user).await {
+    match db.apiusermanager.create_apiuser(&user).await {
         Ok(_) => {
             let token = user.new_token(TOKEN_DURATION);
-            let _ = db.usermanager.save_token(&user.uuid, &token).await;
-            return Ok(Json(account_model::Account {
-                username: user.username,
-                uuid: user.uuid,
-                token: token.token.to_string(),
-            }));
+            match db.apiusermanager.set_token(&user.uuid, &token).await {
+                Ok(_) => {
+                    return Ok(Json(account_model::AccountTokenInfos {
+                        token: token.token,
+                        timestamp: token.timestamp,
+                        expiration_timestamp: token.expiration_timestamp,
+                    }))
+                }
+                Err(_error) => {
+                    println!("{:?}", _error);
+                    return Err(account_errors::Error {
+                        content: account_model::AccountError::build(
+                            500,
+                            Some("Database error.".to_string()),
+                        ),
+                    });
+                }
+            }
         }
         Err(_error) => {
             println!("{:?}", _error);
@@ -76,7 +98,7 @@ pub async fn signup(
     }
 }
 
-#[post("/admin/refresh-token", data = "<input>")]
+#[post("/api/admin/refresh-token", data = "<input>")]
 pub async fn refresh_token(
     api: ApiUserToken,
     db: &State<Database>,
@@ -87,16 +109,32 @@ pub async fn refresh_token(
             content: account_model::AccountError::build(400, Some("No permission".to_string())),
         });
     }
-    match db.usermanager.get_user(None, Some(&input.uuid)).await {
+    match db
+        .apiusermanager
+        .get_apiuser(None, Some(&input.uuid.to_string()))
+        .await
+    {
         Ok(mut user) => match &mut user {
             Some(user) => {
                 let token = user.new_token(TOKEN_DURATION);
-                let _ = db.usermanager.save_token(&user.uuid, &token).await;
-                return Ok(Json(account_model::AccountTokenInfos {
-                    token: token.token.clone(),
-                    timestamp: token.timestamp,
-                    expiration_timestamp: token.expiration_timestamp,
-                }));
+                match db.apiusermanager.set_token(&user.uuid, &token).await {
+                    Ok(_) => {
+                        return Ok(Json(account_model::AccountTokenInfos {
+                            token: token.token,
+                            timestamp: token.timestamp,
+                            expiration_timestamp: token.expiration_timestamp,
+                        }))
+                    }
+                    Err(_error) => {
+                        println!("{:?}", _error);
+                        return Err(account_errors::Error {
+                            content: account_model::AccountError::build(
+                                500,
+                                Some("Database error.".to_string()),
+                            ),
+                        });
+                    }
+                }
             }
             _ => {
                 return Err(account_errors::Error {
@@ -119,7 +157,7 @@ pub async fn refresh_token(
     }
 }
 
-#[post("/admin/check-token", data = "<input>")]
+#[post("/api/admin/check-token", data = "<input>")]
 pub async fn check_token(
     api: ApiUserToken,
     db: &State<Database>,
@@ -130,14 +168,12 @@ pub async fn check_token(
             content: account_model::AccountError::build(400, Some("No permission".to_string())),
         });
     }
-    match db.usermanager.get_user_from_token(&input.token).await {
+    match db.apiusermanager.get_apiuser_from_token(&input.token).await {
         Ok(user) => match user {
             Some(user) => {
-                let mut tokens = user.tokens.clone().unwrap();
-                tokens.retain(|filter| filter.token == input.token);
-                let token = &tokens.get(0).unwrap();
+                let token = user.token.unwrap();
                 return Ok(Json(account_model::AccountTokenInfos {
-                    token: token.token.clone(),
+                    token: token.token,
                     timestamp: token.timestamp,
                     expiration_timestamp: token.expiration_timestamp,
                 }));
@@ -148,7 +184,7 @@ pub async fn check_token(
                         400,
                         Some(format!(
                             "[{}]: Token not related to any account.",
-                            input.token
+                            &input.token
                         )),
                     ),
                 })
@@ -166,7 +202,7 @@ pub async fn check_token(
     }
 }
 
-#[post("/admin/delete", data = "<input>")]
+#[post("/api/admin/delete", data = "<input>")]
 pub async fn delete(
     api: ApiUserToken,
     db: &State<Database>,
@@ -177,10 +213,14 @@ pub async fn delete(
             content: account_model::AccountError::build(400, Some("No permission".to_string())),
         });
     }
-    match db.usermanager.delete_user(None, Some(&input.uuid)).await {
+    match db
+        .apiusermanager
+        .delete_apiuser(None, Some(&input.uuid))
+        .await
+    {
         Ok(user) => match user {
             Some(count) if count.deleted_count >= 1 => {
-                return Ok(Json("Account deleted.".to_string()));
+                return Ok(Json("account deleted.".to_string()));
             }
             _ => {
                 return Err(account_errors::Error {
@@ -203,7 +243,7 @@ pub async fn delete(
     }
 }
 
-#[post("/admin/clear-tokens", data = "<input>")]
+#[post("/api/admin/clear-tokens", data = "<input>")]
 pub async fn clear_tokens(
     api: ApiUserToken,
     db: &State<Database>,
@@ -214,9 +254,9 @@ pub async fn clear_tokens(
             content: account_model::AccountError::build(400, Some("No permission".to_string())),
         });
     }
-    match db.usermanager.clear_tokens(&input.uuid).await {
+    match db.apiusermanager.clear_tokens(&input.uuid).await {
         Ok(user) => match user.modified_count {
-            1 => return Ok(Json("Tokens cleared.".to_string())),
+            1 => return Ok(Json("Token removed.".to_string())),
             _ => {
                 return Err(account_errors::Error {
                     content: account_model::AccountError::build(
