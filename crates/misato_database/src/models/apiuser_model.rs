@@ -23,6 +23,26 @@ pub struct ApiUser {
 }
 
 impl ApiUser {
+    pub fn create_default(token: String) -> Self {
+        Self {
+            timestamp: 0,
+            uuid: String::new(),
+            username: String::new(),
+            password: Password {
+                salt: Vec::new(),
+                hash: Vec::new(),
+            },
+            token: Some(ApiUserToken {
+                token,
+                timestamp: get_current_timestamp(),
+                expiration_timestamp: i64::MAX as u64,
+            }),
+            access: ApiUserAccess {
+                role: ApiUserRoleType::Admin,
+                permissions: None,
+            },
+        }
+    }
     pub fn create(username: String, password: Password, uuid: Option<Uuid>) -> Self {
         Self {
             timestamp: get_current_timestamp(),

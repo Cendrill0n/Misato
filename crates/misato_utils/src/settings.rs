@@ -5,6 +5,7 @@ use std::env;
 pub struct Settings {
     pub mongodb_uri: String,
     pub mongodb_name: String,
+    pub admin_token: String,
 }
 
 impl Settings {
@@ -18,9 +19,17 @@ impl Settings {
             Ok(v) => v.to_string(),
             Err(_) => format!("[{}] is not present in the environment!", "MONGODB_NAME"),
         };
+        let admin_token = match env::var("MISATO_ADMIN_TOKEN") {
+            Ok(v) => v.to_string(),
+            Err(_) => format!(
+                "[{}] is not present in the environment!",
+                "MISATO_ADMIN_TOKEN"
+            ),
+        };
         Self {
             mongodb_uri: mongodb_uri,
             mongodb_name: mongodb_name,
+            admin_token: admin_token,
         }
     }
 }

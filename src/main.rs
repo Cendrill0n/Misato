@@ -1,6 +1,6 @@
 use rocket::{fairing::AdHoc, *};
 
-use misato_database::database::Database;
+use misato_database::{database::*, models::apiuser_model::ApiUser};
 use misato_utils::settings::Settings;
 
 mod errors;
@@ -13,7 +13,15 @@ fn init() -> AdHoc {
     AdHoc::on_ignite("Connecting to MongoDB", |rocket| async {
         let settings = Settings::init();
         match Database::init(&settings).await {
-            Ok(database) => rocket.manage(database).manage(settings),
+            Ok(database) => {
+                // Create admin user
+                let user = ApiUser::create_default(settings.admin_token.clone());
+                match database.apiusermanager.create_apiuser(&user).await {
+                    Ok(_) => println!("Successfully created default user."),
+                    Err(err) => println!("Error whilst creating default user {:?}", err),
+                }
+                rocket.manage(database).manage(settings)
+            }
             Err(error) => {
                 panic!("Cannot connect to MongoDB instance:: {:?}", error)
             }
