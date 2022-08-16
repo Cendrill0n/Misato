@@ -19,7 +19,7 @@ impl<'r> FromRequest<'r> for UserToken {
     type Error = UserTokenError;
 
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<UserToken, Self::Error> {
-        let keys: Vec<_> = request.headers().get("X-Misato-Token").collect();
+        let keys: Vec<_> = request.headers().get("X-Misato-User-Token").collect();
         match keys.len() {
             0 => return Outcome::Failure((Status::BadRequest, UserTokenError::Missing)),
             1 => {

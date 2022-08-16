@@ -19,7 +19,7 @@ impl<'r> FromRequest<'r> for ApiUserToken {
     type Error = ApiUserTokenError;
 
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<ApiUserToken, Self::Error> {
-        let keys: Vec<_> = request.headers().get("X-Misato-Token").collect();
+        let keys: Vec<_> = request.headers().get("X-Misato-API-Token").collect();
         match keys.len() {
             0 => return Outcome::Failure((Status::BadRequest, ApiUserTokenError::Missing)),
             1 => {

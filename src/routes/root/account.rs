@@ -13,7 +13,7 @@ const TOKEN_DURATION: u64 = 24 * 60 * 60;
 pub async fn login(
     db: &State<Database>,
     input: Json<account_model::AccountCredentials>,
-) -> Result<Json<account_model::Account>, account_errors::Error> {
+) -> Result<Json<account_model::AccountTokenInfos>, account_errors::Error> {
     match db.usermanager.get_user(Some(&input.username), None).await {
         Ok(mut user) => match &mut user {
             Some(user) => {
@@ -25,10 +25,11 @@ pub async fn login(
                 {
                     let token = user.new_token(TOKEN_DURATION);
                     let _ = db.usermanager.save_token(&user.uuid, &token).await;
-                    return Ok(Json(account_model::Account {
-                        username: user.username.clone(),
+                    return Ok(Json(account_model::AccountTokenInfos {
+                        token: token.token,
+                        timestamp: token.timestamp,
+                        expiration_timestamp: token.expiration_timestamp,
                         uuid: user.uuid.clone(),
-                        token: token.token.to_string(),
                     }));
                 } else {
                     return Err(account_errors::Error {

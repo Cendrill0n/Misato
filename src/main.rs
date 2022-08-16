@@ -69,6 +69,7 @@ async fn rocket() -> _ {
     routes.append(&mut routes![
         admin::account::signup,
         admin::account::refresh_token,
+        admin::account::profile,
         admin::account::clear_tokens,
         admin::account::delete,
         admin::account::check_token,
