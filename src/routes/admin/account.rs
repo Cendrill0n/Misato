@@ -89,10 +89,8 @@ pub async fn profile(
         });
     }
     match db.usermanager.get_user(None, Some(&input.uuid)).await {
-        Ok(mut user) => match &mut user {
+        Ok(user) => match user {
             Some(user) => {
-                let token = user.new_token(TOKEN_DURATION);
-                let _ = db.usermanager.save_token(&user.uuid, &token).await;
                 return Ok(Json(account_model::Account {
                     uuid: user.uuid.clone(),
                     username: user.username.clone(),
@@ -103,6 +101,49 @@ pub async fn profile(
                     content: account_model::AccountError::build(
                         400,
                         Some(format!("[{}]: Account doesn't exist.", input.uuid)),
+                    ),
+                })
+            }
+        },
+        Err(error) => {
+            println!("{:?}", error);
+            return Err(account_errors::Error {
+                content: account_model::AccountError::build(
+                    500,
+                    Some("Database error.".to_string()),
+                ),
+            });
+        }
+    }
+}
+
+#[post("/admin/profile-from-token", data = "<input>")]
+pub async fn profile_from_token(
+    api: ApiUserToken,
+    db: &State<Database>,
+    input: Json<account_model::AccountToken>,
+) -> Result<Json<account_model::Account>, account_errors::Error> {
+    if api.apiuser.access.role != apiuser_model::ApiUserRoleType::Admin {
+        return Err(account_errors::Error {
+            content: account_model::AccountError::build(400, Some("No permission.".to_string())),
+        });
+    }
+    match db.usermanager.get_user_from_token(&input.token).await {
+        Ok(user) => match user {
+            Some(user) => {
+                return Ok(Json(account_model::Account {
+                    uuid: user.uuid.clone(),
+                    username: user.username.clone(),
+                }));
+            }
+            _ => {
+                return Err(account_errors::Error {
+                    content: account_model::AccountError::build(
+                        400,
+                        Some(format!(
+                            "[{}]: Token not related to any account.",
+                            input.token
+                        )),
                     ),
                 })
             }

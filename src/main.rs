@@ -70,6 +70,7 @@ async fn rocket() -> _ {
         admin::account::signup,
         admin::account::refresh_token,
         admin::account::profile,
+        admin::account::profile_from_token,
         admin::account::clear_tokens,
         admin::account::delete,
         admin::account::check_token,
